@@ -2,9 +2,16 @@ package com.example.Jichen.weather;
 
 import androidx.appcompat.app.AppCompatActivity;
 
+import android.content.Context;
 import android.os.AsyncTask;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.View;
+import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
+import android.widget.EditText;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -16,8 +23,14 @@ import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.net.URLEncoder;
+import java.util.concurrent.ExecutionException;
 
 public class MainActivity extends AppCompatActivity {
+    EditText city;
+    Button button;
+    TextView textView;
+
 
     class DownloadTask extends AsyncTask<String, Void, String> {
         @Override
@@ -36,33 +49,47 @@ public class MainActivity extends AppCompatActivity {
                     jsonString.append(current);
                     data = reader.read();
                 }
-                return jsonString.toString();
 
-            } catch (MalformedURLException e) {
-                e.printStackTrace();
-                return null;
-            } catch (IOException e) {
+                JSONObject jsonPart = new JSONObject(jsonString.toString()).getJSONArray("weather").getJSONObject(0);
+                String main = jsonPart.getString("main");
+                String description = jsonPart.getString("description");
+
+                String result = main + ": " + description;
+
+                return result;
+
+            } catch (Exception e) {
                 e.printStackTrace();
                 return null;
             }
         }
+    }
 
-        @Override
-        protected void onPostExecute(String s) {
-            super.onPostExecute(s);
+    public void getWeather(View view) {
+        String typeIn = city.getText().toString();
 
-            try {
-                JSONObject jsonObject = new JSONObject(s);
-                JSONArray jsonArray = jsonObject.getJSONArray("weather");
-                for(int i = 0; i < jsonArray.length(); i++) {
-                    Log.i("weather", jsonArray.getJSONObject(i).toString());
-                }
-
-            } catch (JSONException e) {
-                e.printStackTrace();
-            }
-
+        if(typeIn.length() == 0) {
+            Toast.makeText(getApplicationContext(), "Please enter a city.", Toast.LENGTH_SHORT);
+            return;
         }
+
+        DownloadTask task = new DownloadTask();
+        String result = null;
+
+        try {
+            String encodedCityName = URLEncoder.encode(typeIn, "UTF-8");
+            result = task.execute("http://api.openweathermap.org/data/2.5/weather?q=" + encodedCityName + "&appid=1c9bb18793842804ece94158cc370135").get();
+            if(result == null || result.equals(""))
+                Toast.makeText(getApplicationContext(), "result is empty", Toast.LENGTH_SHORT);
+        } catch (Exception e) {
+            Toast.makeText(getApplicationContext(), "Could not find weather :(", Toast.LENGTH_SHORT);
+            e.printStackTrace();
+        }
+
+        textView.setText(result);
+
+        InputMethodManager mgr = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        mgr.hideSoftInputFromWindow(city.getWindowToken(), 0);
     }
 
     @Override
@@ -70,7 +97,8 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        DownloadTask task = new DownloadTask();
-        task.execute("http://api.openweathermap.org/data/2.5/weather?q=London,uk&appid=1c9bb18793842804ece94158cc370135");
+        city = findViewById(R.id.editText);
+        button = findViewById(R.id.button);
+        textView = findViewById(R.id.textView);
     }
 }
